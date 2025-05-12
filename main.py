@@ -1,10 +1,10 @@
 import logging
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
-    ContextTypes, CallbackQueryHandler, filters
+    CallbackQueryHandler, ContextTypes, filters
 )
-from datetime import datetime
 
 # === CONFIGURATION ===
 BOT_TOKEN = "YOUR_BOT_TOKEN"
@@ -20,7 +20,6 @@ logging.basicConfig(
 
 # === START / JOURNAL ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Check if the user already has an ongoing journal (if they completed one yesterday)
     if 'journal_step' in context.user_data:
         await resume_journal(update, context)
     else:
@@ -31,8 +30,8 @@ async def journal_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     context.user_data['journal_step'] = 1
-
     today = datetime.now().strftime('%A, %d %B %Y')
+
     keyboard = [
         [InlineKeyboardButton("📸 Yes, upload a photo", callback_data="photo")],
         [InlineKeyboardButton("⏩ Skip", callback_data="skip_photo")]
@@ -93,20 +92,20 @@ async def handle_journal_entry(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if step == 2 and update.message.photo:
         context.user_data['photo'] = update.message.photo[-1].file_id
-        context.user_data['journal_step'] = 3  # Move to rating step
+        context.user_data['journal_step'] = 3
 
-        # Show rating buttons right away
         rating_keyboard = [
-            [InlineKeyboardButton("⭐ 1", callback_data="rating_1"),
-            InlineKeyboardButton("⭐ 2", callback_data="rating_2"),
-            InlineKeyboardButton("⭐ 3", callback_data="rating_3"),
-            InlineKeyboardButton("⭐ 4", callback_data="rating_4"),
-            InlineKeyboardButton("⭐ 5", callback_data="rating_5")]
+            [
+                InlineKeyboardButton("⭐ 1", callback_data="rating_1"),
+                InlineKeyboardButton("⭐ 2", callback_data="rating_2"),
+                InlineKeyboardButton("⭐ 3", callback_data="rating_3"),
+                InlineKeyboardButton("⭐ 4", callback_data="rating_4"),
+                InlineKeyboardButton("⭐ 5", callback_data="rating_5")
+            ]
         ]
         reply_markup = InlineKeyboardMarkup(rating_keyboard)
 
         await update.message.reply_text("📸 Photo added! How would you rate your day (1–5)?", reply_markup=reply_markup)
-
 
     elif step == 3 and update.message.text:
         text = update.message.text.strip()
@@ -124,8 +123,6 @@ async def handle_journal_entry(update: Update, context: ContextTypes.DEFAULT_TYP
 # === FINALIZE JOURNAL ENTRY ===
 async def finalize_journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now().strftime('%A, %d %B %Y')
-    short_date = datetime.now().strftime('%d-%m-%Y')
-
     parts = [f"📔 *Daily Journal* — {today}"]
 
     if 'rating' in context.user_data:
@@ -155,10 +152,7 @@ async def finalize_journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-    # Send confirmation message to user
     await update.message.reply_text("✅ Your journal has been posted! Great job today ✨")
-
-    # Clear the user data for a fresh start
     context.user_data.clear()
 
 # === RESUME JOURNAL ===
